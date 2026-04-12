@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.so
+.Python
+
+# ROS2 build/install
+build/
+install/
+log/
+
+# IDE
+.vscode/
+.idea/
+
+# Results
+*.png
+results/
+
+# Virtual environments
+venv/
+env/
+
+# OS junk
+.DS_Store
