@@ -24,6 +24,7 @@ robot. Built and tested on Ubuntu 24.04 with ROS2 Jazzy.
 
 The package is structured into five independent modules, each with a single
 responsibility:
+```
 path_controller/
 ├── path_smoother.py          # Task 1 — cubic spline path smoothing
 ├── trajectory_generator.py   # Task 2 — time-stamped trajectory generation
@@ -38,7 +39,7 @@ test/
 ├── test_simulator.py           # 16 tests — kinematics and history recording
 ├── test_controller.py          # 13 tests — Pure Pursuit and goal detection
 └── test_node_ros.py            # 9 tests  — ROS2 interface integration tests
-
+```
 **59 unit tests + 13 integration tests = 72 tests total, all passing.**
 
 ---
@@ -137,13 +138,13 @@ handling the case where one node starts before another. For this system, that
 overhead buys nothing. A single node with five clean internal modules gives
 the same separation of concerns with none of the coordination cost.
 
-This changes on a real robot — see the *Extending to a Real Robot* section for
+This changes on a real robot, see the *Extending to a Real Robot* section for
 how and why the architecture would expand.
 
-### Path Smoothing — Cubic Spline with Chord-Length Parameterisation
+### Path Smoothing : Cubic Spline with Chord-Length Parameterisation
 
-The smoother fits two independent cubic splines — one for x(t) and one for y(t)
-— where t is the cumulative arc-length distance along the waypoint polyline
+The smoother fits two independent cubic splines : one for x(t) and one for y(t)
+, where t is the cumulative arc-length distance along the waypoint polyline
 (chord-length parameterisation).
 
 The key design decision is chord-length over uniform indexing. With uniform
@@ -153,34 +154,34 @@ when waypoints are unevenly spaced because it treats a 0.1 m gap the same as a
 parameter, so the spline behaves correctly regardless of spacing. This is the
 same parameterisation used in industrial robot path planning.
 
-Cubic splines guarantee C2 continuity — position, velocity, and curvature are
+Cubic splines guarantee C2 continuity : position, velocity, and curvature are
 all smooth. Discontinuous curvature would require instantaneous changes in
 angular velocity, which is physically impossible on a differential drive robot.
 
-### Trajectory Generation — Trapezoidal Velocity Profile
+### Trajectory Generation : Trapezoidal Velocity Profile
 
 Two profiles are implemented and selectable at runtime:
 
-**Constant velocity** — timestamps are simply `t = arc_length / v`. Simple and
+**Constant velocity** : timestamps are simply `t = arc_length / v`. Simple and
 fast to compute. Useful for benchmarking and as a baseline comparison.
 
-**Trapezoidal velocity** (default) — the robot accelerates from rest, cruises
+**Trapezoidal velocity** (default) : the robot accelerates from rest, cruises
 at the target speed, then decelerates to a stop. This is the physically correct
 profile for real hardware: instantaneous velocity jumps would cause wheel slip,
 stress motor drivers, and make the robot hard to control. The acceleration
 distance is capped at 20% of total path length so short paths get a sensible
 ramp without phases overlapping.
 
-### Trajectory Tracking Controller — Pure Pursuit with Adaptive Velocity Blending
+### Trajectory Tracking Controller : Pure Pursuit with Adaptive Velocity Blending
 
 The controller uses the Pure Pursuit algorithm: at each tick, find a
 *lookahead point* on the path ahead of the robot, compute the curvature needed
 to reach it, and convert that to an angular velocity command. Pure Pursuit is
 widely used in autonomous vehicles and ROS2 Nav2's Regulated Pure Pursuit
-plugin. It has a single, physically intuitive tuning parameter — lookahead
-distance — and is robust to noise in the robot's pose estimate.
+plugin. It has a single, physically intuitive tuning parameter : lookahead
+distance , and is robust to noise in the robot's pose estimate.
 
-**Velocity evolution — three iterations:**
+**Velocity evolution : three iterations:**
 
 *Iteration 1 — pure feedback.* Initial implementation used
 `v = v_max / (1 + 2.5 * |alpha|)` where alpha is the heading error. Simple and
@@ -213,15 +214,15 @@ stalling.
 
 The original lookahead search was an unbounded loop that scanned forward from
 the closest point until it found a point at least `lookahead_distance` away.
-On a looping path — one that passes near the start coordinates again mid-run —
+On a looping path , one that passes near the start coordinates again mid run ,
 the search would jump hundreds of indices in a single control tick. The robot
-would follow the first section correctly, then skip to near the end and spiral.
+would skip portions of the path if the path looped back close to a position.
 
 The fix is `_PROGRESS_WINDOW = 20`. Each control tick is only allowed to
 advance `_last_closest_idx` by at most 20 steps. At 0.3 m/s and 20 Hz the
 robot moves about 0.015 m per tick. The path has 500 points over roughly 12 m,
 so one real step is about 0.6 index units. A window of 20 is 30× larger than
-needed — ample headroom for sharp turns — but makes it physically impossible
+needed : ample headroom for sharp turns , but makes it physically impossible
 to skip a loop-back in one tick. Search complexity drops from O(n) to O(1).
 
 **Flag-based goal detection:**
@@ -230,19 +231,20 @@ A naive distance check fires whenever the robot is within the goal threshold,
 even if it is on the first pass of a path that happens to go near the goal
 coordinates mid-run. The `_goal_armed` flag only flips to `True` after
 `_last_closest_idx` reaches within 10 indices of the end of the full path
-array — meaning the robot has physically consumed the entire trajectory. Only
+array , meaning the robot has physically consumed the entire trajectory. Only
 then does proximity to the goal trigger a stop. This is the same two-condition
 goal check used in Nav2's goal checker plugin.
+This was implemented to avoid the case where robot would stop prematurely if the trajectory loops back to starting point and goes on.
 
 **Initial heading from spline lookahead:**
 
-Early versions set the robot's initial heading toward waypoint[1] — a straight
+Early versions set the robot's initial heading toward waypoint[1] , a straight
 line approximation. The controller steers toward the lookahead point on the
 curved spline, not toward waypoint[1]. The spline curves away immediately, so
 there was always a heading error at t=0 causing an error spike. The fix
 computes the actual first lookahead point on the spline before the robot spawns
-and sets the initial heading exactly toward that point — giving zero heading
-error at t=0 for any waypoint set.
+and sets the initial heading exactly toward that point , minimizing heading
+error for any waypoint set.
 
 ### Code Architecture
 
@@ -265,7 +267,7 @@ chord-length parameterisation) are explained inline with the code they affect.
 On a real TurtleBot3 or similar platform, the single-node architecture would
 expand into a proper multi-node ROS2 system. Here is what changes and why.
 
-**Pose estimation — replace simulator with odometry subscriber:**
+**Pose estimation : replace simulator with odometry subscriber:**
 
 The simulator's `step()` and `get_state()` are replaced with a subscriber to
 the `/odom` topic (nav_msgs/Odometry). For better accuracy, a separate
@@ -287,8 +289,7 @@ controller subscribes to its output.
 The controller needs the robot's pose in the `map` frame, but odometry is
 published in the `odom` frame. A tf2 `TransformListener` in the controller
 node handles the `map → odom → base_link` transform chain. This also means
-the path publisher must set `header.frame_id = 'map'` — already done in the
-current implementation.
+the path publisher must set `header.frame_id = 'map'`.
 
 **Watchdog timer:**
 
@@ -319,16 +320,16 @@ at 0.3 m/s.
 
 ## Obstacle Avoidance — Extra Credit
 
-The current system is a pure path-following stack with no awareness of the
+The current system is a pure path following stack with no awareness of the
 environment. Here is how obstacle avoidance would be layered on top without
 restructuring the existing modules.
 
-**Architecture — two-layer planner:**
+**Architecture : two-layer planner:**
 
 The system would be split into a global planner layer (runs once or on
 replanning trigger) and a local planner layer (runs every control tick).
 
-**Local avoidance — Dynamic Window Approach (DWA):**
+**Local avoidance : Dynamic Window Approach (DWA):**
 
 A LaserScan subscriber on `/scan` would run in the controller node. Every
 control tick, before computing the Pure Pursuit command, the node checks
@@ -349,9 +350,9 @@ and acceleration limits — simulating each pair forward by a short time window
 The (v, omega) pair with the highest combined score is sent as the command.
 This gives smooth, real-time avoidance without touching the global path.
 
-**Global replanning — RRT\*:**
+**Global replanning : RRT\*:**
 
-If DWA cannot find any collision-free sample — a dead end — the node triggers
+If DWA cannot find any collision-free sample : a dead end , the node triggers
 a global replan. RRT* samples random configurations in the free space, connects
 them to the existing tree while rewiring to minimise path cost, and converges
 to an asymptotically optimal collision-free path. The new path is immediately
@@ -362,7 +363,7 @@ re-smoothed using the same `smooth_path()` function and re-timed using
 
 All avoidance logic lives in `controller.py` and in the node's LaserScan
 callback. The path smoother, trajectory generator, and simulator are completely
-untouched. This is possible because of the modular design — each module exposes
+untouched. This is possible because of the modular design , each module exposes
 a clean interface and has no knowledge of the others.
 
 **Costmap integration:**
@@ -379,9 +380,7 @@ planner treat narrow corridors conservatively.
 Three AI tools were used actively throughout development:
 
 **Claude (Anthropic)** was the primary development tool. It was used for
-architecture planning and the rationale behind single-node vs multi-node
-design, algorithm selection (why cubic splines, why chord-length, why Pure
-Pursuit), initial code generation for all five modules, debugging the
+architecture planning and the rationale behind the algorithms, debugging the
 looping-path bug and designing the progress window fix, writing the test suite
 including the ROS2 integration tests, and iterating on the adaptive velocity
 blending formula.
@@ -391,10 +390,10 @@ from Humble (particularly the executor API changes that caused the
 `RuntimeError: Executor is already spinning` issue in the integration tests)
 and for verifying the DWA scoring formula described in the extra credit section.
 
-**DeepSeek** was used for sanity-checking the Pure Pursuit curvature formula
-derivation and confirming the chord-length parameterisation approach against
-academic references on spline path planning for mobile robots.
+**DeepSeek** was used for sanity checking the Pure Pursuit curvature formula
+derivation and confirming the chord length parameterisation approach against
+academic references on spline path planning for mobile robots. It was also 
+used in debugging when claudes limit ran out.
 
-All three tools were used as accelerators and thinking partners — every design
-decision was understood, evaluated, and intentionally chosen before being
-implemented.
+All three tools were used as accelerators and thinking partners complimenting 
+the development of this product after thinking the entire flow through to the end.
